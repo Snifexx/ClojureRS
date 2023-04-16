@@ -62,6 +62,10 @@ pub use self::gte::*;
 pub(crate) mod str;
 pub use self::str::*;
 
+// lazy-seq
+pub(crate) mod lazy_seq;
+pub use self::lazy_seq::*;
+
 // operations on collections
 pub(crate) mod nth;
 pub use self::nth::*;
@@ -73,6 +77,7 @@ pub(crate) mod get;
 pub use self::get::*;
 pub(crate) mod map;
 pub use self::map::*;
+
 
 pub(crate) mod more;
 pub use self::more::*;

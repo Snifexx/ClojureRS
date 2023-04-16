@@ -18,6 +18,7 @@ pub enum TypeTag {
     String,
     Integer,
     ISeq,
+    LazySeq,
     Nil,
     Pattern,
 }
@@ -44,6 +45,7 @@ impl fmt::Display for TypeTag {
             ISeq => std::string::String::from("clojure.lang.ISeq"),
             Nil => std::string::String::from("clojure.lang.Nil"),
             Pattern => std::string::String::from("rust.regex"),
+            LazySeq => std::string::String::from("clojure.lang.LazySeq"),
         };
         write!(f, "{}", str)
     }

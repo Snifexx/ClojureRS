@@ -34,6 +34,7 @@ impl IFn for JoinFn {
         } else {
             args.get(1)
         };
+        if let Value::LazySequence(_) = &**coll.unwrap() { return Value::String(String::from("")); }
         if let Some(iterable) = coll.unwrap().try_as_protocol::<Iterable>() {
             Value::String(
                 iterable

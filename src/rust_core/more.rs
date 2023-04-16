@@ -22,7 +22,11 @@ impl IFn for MoreFn {
         if args.len() != 1 {
             return error_message::wrong_arg_count(1, args.len());
         }
-        match args.get(0).unwrap().try_as_protocol::<Iterable>() {
+        let val = args.get(0).unwrap();
+        if let Value::LazySequence(_) = &**val {
+            return error_message::type_mismatch(TypeTag::ISeq, args.get(0).unwrap());
+        }
+        match val.try_as_protocol::<Iterable>() {
             Some(iterable) => match iterable.iter().collect::<Vec<Rc<Value>>>().split_first() {
                 Some((_, more)) => {
                     Value::PersistentList(more.to_vec().into_iter().collect::<PersistentList>())

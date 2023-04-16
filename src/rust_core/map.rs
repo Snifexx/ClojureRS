@@ -23,6 +23,14 @@ impl IFn for MapFn {
             return error_message::wrong_arg_count(1, args.len());
         }
         if let Value::IFn(ifn) = &**args.get(0).unwrap() {
+            let iter = args.get(1).unwrap();
+            if let Value::LazySequence(_) = &**iter {
+                return Value::Condition(format!(
+                    "Type mismatch; Expected instance of {}, Recieved type {}",
+                    TypeTag::ISeq,
+                    args.len()
+                ))
+            }
             if let Some(iterable) = args.get(1).unwrap().try_as_protocol::<Iterable>() {
                 return iterable
                     .iter()

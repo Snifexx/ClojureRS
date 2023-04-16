@@ -74,5 +74,17 @@
 
 (defn ffirst [x]
   (first (first x)))
+
 (defmacro var [name]
   (var-fn* name))
+
+; empty? always returns false on LazySequences
+(defn empty? [coll]
+  (= (count coll) 0))
+
+(defn reduce [f coll & init]
+  (if (empty? init)
+    (reduce f (rest coll) (first coll))
+    (if (empty? coll)
+      (first init)
+      (reduce f (rest coll) (f (first init) (first coll))))))

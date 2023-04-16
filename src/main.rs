@@ -23,6 +23,7 @@ mod lambda;
 mod maps;
 mod namespace;
 mod persistent_vector;
+mod lazy_sequence;
 mod protocols;
 mod reader;
 mod repl;
