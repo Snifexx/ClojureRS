@@ -1,3 +1,4 @@
+use std::iter;
 use crate::ifn::IFn;
 use crate::value::{ToValue, Value};
 use std::rc::Rc;
@@ -23,9 +24,11 @@ impl IFn for CountFn {
             return error_message::wrong_arg_count(1, args.len());
         }
 
-        let coll_size = match args.get(0).unwrap().try_as_protocol::<Iterable>() {
+        let coll = args.get(0).unwrap();
+        if let Value::LazySequence(_) = &**coll { return error_message::type_mismatch(TypeTag::ISeq, &coll.to_value()) }
+        let coll_size = match coll.try_as_protocol::<Iterable>() {
             Some(iterable) => iterable.iter().count(),
-            None => match args.get(0).unwrap().to_value() {
+            None => match coll.to_value() {
                 Value::Nil => 0,
                 _unsupported => return error_message::type_mismatch(TypeTag::ISeq, &_unsupported),
             },

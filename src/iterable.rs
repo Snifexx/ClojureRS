@@ -10,19 +10,22 @@ use crate::protocol::Protocol;
 use crate::value::ToValue;
 use crate::value::Value;
 use std::rc::Rc;
+use crate::lazy_sequence::{LazySequence, LazySequenceIter, ToLazySequenceIter};
 // @TODO move to protocols::iterable
 
 define_protocol!(
     Iterable,
     PersistentList,
     PersistentListMap,
-    PersistentVector
+    PersistentVector,
+    LazySequence
 );
 
 pub enum IterableIter {
     PersistentList(PersistentListIter),
     PersistentVector(PersistentVectorIter),
     PersistentListMap(PersistentListMapIter),
+    LazySequence(LazySequenceIter),
 }
 impl Iterator for IterableIter {
     type Item = Rc<Value>;
@@ -42,6 +45,7 @@ impl Iterator for IterableIter {
                 }
                 None
             }
+            IterableIter::LazySequence(lazyseq_iter) => lazyseq_iter.next(),
         }
     }
 }
@@ -56,6 +60,9 @@ impl Iterable {
             }
             Value::PersistentListMap(pmap) => {
                 IterableIter::PersistentListMap(Rc::new(pmap.clone()).iter())
+            }
+            Value::LazySequence(lseq) => {
+                IterableIter::LazySequence(Rc::new(lseq.clone()).iter())
             }
             // We are ok panicking in this case because an invariant on the type is the assumption
             // that we only have an Iterable if we were able to convert

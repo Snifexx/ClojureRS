@@ -4,6 +4,7 @@ use crate::value::{ToValue, Value};
 use std::rc::Rc;
 
 use crate::error_message;
+use crate::lazy_sequence::ToLazySequenceIter;
 use crate::persistent_list::PersistentList::{Cons, Empty};
 use crate::persistent_list::ToPersistentListIter;
 use crate::persistent_vector::PersistentVector;
@@ -20,7 +21,7 @@ impl ToValue for NthFn {
 impl IFn for NthFn {
     fn invoke(&self, args: Vec<Rc<Value>>) -> Value {
         // @TODO generalize arity exceptions, and other exceptions
-        if args.len() != 2 {
+        if args.len() != 2 && args.len() != 3 {
             return error_message::wrong_varg_count(&[2, 3], args.len());
         }
         // @TODO change iteration to work with Value references, or even change invoke to work on Rc<..>
@@ -48,6 +49,13 @@ impl IFn for NthFn {
                         error_message::index_out_of_bounds(ind, vals.len())
                     } else {
                         vals.get(ind).unwrap().to_value()
+                    }
+                }
+                Value::LazySequence(seq) => {
+                    if ind == 0 {
+                        seq.cons.to_value()
+                    } else {
+                        seq.iter().nth(ind).unwrap().to_value()
                     }
                 }
                 _ => error_message::type_mismatch(TypeTag::ISeq, &**args.get(0).unwrap()),

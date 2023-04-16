@@ -7,6 +7,7 @@ use crate::persistent_list::PersistentList::Cons;
 use crate::persistent_list::{PersistentList, ToPersistentList, ToPersistentListIter};
 use crate::persistent_list_map::{PersistentListMap, ToPersistentListMapIter};
 use crate::persistent_vector::PersistentVector;
+use crate::lazy_sequence::LazySequence;
 use crate::symbol::Symbol;
 use crate::type_tag::TypeTag;
 use crate::var::Var;
@@ -47,6 +48,7 @@ pub enum Value {
     PersistentList(PersistentList),
     PersistentVector(PersistentVector),
     PersistentListMap(PersistentListMap),
+    LazySequence(LazySequence),
 
     Condition(std::string::String),
     // Macro body is still a function, that will be applied to our unevaled arguments
@@ -136,6 +138,7 @@ impl Hash for Value {
             Value::PersistentList(plist) => plist.hash(state),
             Value::PersistentVector(pvector) => pvector.hash(state),
             Value::PersistentListMap(plistmap) => plistmap.hash(state),
+            LazySequence(lseq) => lseq.hash(state),
             Value::Condition(msg) => msg.hash(state),
             // Random hash is temporary;
             // @TODO implement hashing for functions / macros
@@ -154,6 +157,7 @@ impl Hash for Value {
             Value::String(string) => string.hash(state),
             Value::Pattern(p) => p.as_str().hash(state),
             Value::Nil => ValueHash::Nil.hash(state),
+
         }
         // self.id.hash(state);
         // self.phone.hash(state);
@@ -173,6 +177,7 @@ impl fmt::Display for Value {
             Value::PersistentList(plist) => plist.to_string(),
             Value::PersistentVector(pvector) => pvector.to_string(),
             Value::PersistentListMap(plistmap) => plistmap.to_string(),
+            LazySequence(lseq) => lseq.to_string(),
             Value::Condition(msg) => format!("#Condition[\"{}\"]", msg),
             Value::Macro(_) => std::string::String::from("#macro[]"),
             Value::QuoteMacro => std::string::String::from("#macro[quote*]"),
@@ -218,6 +223,7 @@ impl Value {
             Value::PersistentList(_) => TypeTag::PersistentList,
             Value::PersistentVector(_) => TypeTag::PersistentVector,
             Value::PersistentListMap(_) => TypeTag::PersistentListMap,
+            Value::LazySequence(_) => TypeTag::LazySeq,
             Value::Condition(_) => TypeTag::Condition,
             // Note; normal Clojure cannot take the value of a macro, so I don't imagine this
             // having significance in the long run, but we will see
@@ -672,6 +678,12 @@ impl ToValue for PersistentVector {
 impl ToValue for PersistentListMap {
     fn to_value(&self) -> Value {
         Value::PersistentListMap(self.clone())
+    }
+}
+
+impl ToValue for LazySequence {
+    fn to_value(&self) -> Value {
+        Value::LazySequence(self.clone())
     }
 }
 

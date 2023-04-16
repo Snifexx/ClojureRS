@@ -11,7 +11,7 @@ use std::rc::Rc;
 /// returns first element or nil
 /// TODO: support for strings
 #[derive(Debug, Clone)]
-pub struct FirstFn {}
+pub struct  FirstFn {}
 impl ToValue for FirstFn {
     fn to_value(&self) -> Value {
         Value::IFn(Rc::new(self.clone()))
