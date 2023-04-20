@@ -15,16 +15,11 @@
 
 <p align="center"><i>The REPL in action!</i></p>
 
-## Project Goals:
-1. To create a version of Clojure that gets to exist independent of a particular platform
-2. To explore a Clojure that, being more independent, has
-   1. Proper tail call elimination
-   2. Conditions / Restarts
-   3. Any other feature it might not normally be able to indulge
-3. To, should the project progress, begin looking more serious into advanced compilation techniques, to create a serious Clojure implementation 
+This is my fork look up the original project!
 
-Check [clojureRS.org](./clojureRS.org) (the file, not website) for more notes about the design of the language, which should grow as the program grows.
-
-## Discussion
-  Come join us on [Discord](https://discord.gg/mFE3JNr)!
-
+## Features:
+- [x] Added Lazy Sequences and `lazy-seq` core function
+- [ ] Automatically load [core.clj](./src/clojure/core.clj) and [string.clj](./src/clojure/string.clj) when starting repl environment
+- [x] Fixed error with calls to funcs with varargs
+- [ ] Implement multi argument functions with `defn`
+- [ ] Maybe anonymous reader macro?
