@@ -8,11 +8,7 @@
 //! not;  since this is about being a 'free-er' Clojure, especially since it can't compete with it in raw
 //! power, neither speed or ecosystem,  it might be worth it to leave in reader macros.
 
-use nom::combinator::verify;
-use nom::{
-    branch::alt, bytes::complete::tag, combinator::opt, map, sequence::preceded, take_until,
-    Err::Incomplete, IResult,
-};
+use nom::*;
 
 use crate::error_message;
 use crate::keyword::Keyword;
@@ -29,6 +25,11 @@ use crate::traits::IObj;
 use crate::value::{ToValue, Value};
 use std::io::BufRead;
 use std::rc::Rc;
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::combinator::{opt, verify};
+use nom::Err::Incomplete;
+use nom::sequence::preceded;
 //
 // Note; the difference between ours 'parsers'
 //   identifier_parser

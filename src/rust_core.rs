@@ -71,6 +71,8 @@ pub(crate) mod nth;
 pub use self::nth::*;
 pub(crate) mod concat;
 pub use self::concat::*;
+pub(crate) mod conj;
+pub use self::conj::*;
 pub(crate) mod assoc;
 pub use self::assoc::*;
 pub(crate) mod get;

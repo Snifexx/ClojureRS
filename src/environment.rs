@@ -287,6 +287,7 @@ impl Environment {
         let nth_fn = rust_core::NthFn {};
         let do_macro = rust_core::DoMacro {};
         let concat_fn = rust_core::ConcatFn {};
+        let conj_fn = rust_core::ConjFn {};
         let flush_stdout_fn = rust_core::FlushStdoutFn {};
         let system_newline_fn = rust_core::SystemNewlineFn {};
         let print_string_fn = rust_core::PrintStringFn {};
@@ -378,12 +379,12 @@ impl Environment {
         );
 
         // Interop to read real clojure.core
-        environment.insert(Symbol::intern("lt"), lt_fn.to_rc_value());
+        environment.insert(Symbol::intern("<"), lt_fn.to_rc_value());
 
-        environment.insert(Symbol::intern("gt"), gt_fn.to_rc_value());
-        environment.insert(Symbol::intern("lte"), lte_fn.to_rc_value());
+        environment.insert(Symbol::intern(">"), gt_fn.to_rc_value());
+        environment.insert(Symbol::intern("<="), lte_fn.to_rc_value());
 
-        environment.insert(Symbol::intern("gte"), gte_fn.to_rc_value());
+        environment.insert(Symbol::intern(">="), gte_fn.to_rc_value());
 
         // Thread namespace
         environment.insert_into_namespace(
@@ -502,6 +503,7 @@ impl Environment {
         environment.insert(Symbol::intern("assoc"), assoc_fn.to_rc_value());
         environment.insert(Symbol::intern("get"), get_fn.to_rc_value());
         environment.insert(Symbol::intern("concat"), concat_fn.to_rc_value());
+        environment.insert(Symbol::intern("conj"), conj_fn.to_rc_value());
         environment.insert(Symbol::intern("more"), more_fn.to_rc_value());
         environment.insert(Symbol::intern("first"), first_fn.to_rc_value());
         environment.insert(Symbol::intern("second"), second_fn.to_rc_value());

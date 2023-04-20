@@ -14,6 +14,7 @@ use crate::var::Var;
 use core::fmt::Display;
 
 extern crate rand;
+
 use rand::Rng;
 
 use std::cmp::{Ord, Ordering};
@@ -21,6 +22,10 @@ use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use itertools::Itertools;
+use crate::error_message::cast;
+use crate::iterable::Iterable;
+use crate::protocol::ProtocolCastable;
 
 // @TODO Change IFn's name -- IFn is a function, not an IFn.
 //       The body it executes just happens to be an the IFn.
@@ -67,6 +72,7 @@ pub enum Value {
     Nil,
     Pattern(regex::Regex),
 }
+
 use crate::value::Value::*;
 
 impl PartialEq for Value {
@@ -119,7 +125,9 @@ enum ValueHash {
     LetMacro,
     Nil,
 }
+
 impl Eq for Value {}
+
 impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -157,12 +165,12 @@ impl Hash for Value {
             Value::String(string) => string.hash(state),
             Value::Pattern(p) => p.as_str().hash(state),
             Value::Nil => ValueHash::Nil.hash(state),
-
         }
         // self.id.hash(state);
         // self.phone.hash(state);
     }
 }
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let str = match self {
@@ -195,6 +203,7 @@ impl fmt::Display for Value {
         write!(f, "{}", str)
     }
 }
+
 impl Value {
     //
     // Likely temporary
@@ -347,6 +356,8 @@ impl Value {
                     .unwrap()
                     .eval_to_rc(Rc::clone(&environment));
 
+                if let Value::Condition(_) = &*defval { return Some(defval) };
+
                 let doc_string = if arg_rc_values.len() == 3 {
                     match arg_rc_values.get(1).unwrap().to_value() {
                         Value::String(s) => Value::String(s.to_string()),
@@ -401,17 +412,17 @@ impl Value {
                     .into_list()
                     .eval(Rc::clone(&environment));
                 let macro_value = match &macro_invokable_body {
-		    Value::IFn(ifn) => Rc::new(Value::Macro(Rc::clone(&ifn))),
-		    _ => Rc::new(Value::Condition(std::string::String::from("Compiler Error: your macro_value somehow compiled into something else entirely.  I don't even know how that happened,  this behavior is hardcoded, that's impressive")))
-		};
+                    Value::IFn(ifn) => Rc::new(Value::Macro(Rc::clone(&ifn))),
+                    _ => Rc::new(Value::Condition(std::string::String::from("Compiler Error: your macro_value somehow compiled into something else entirely.  I don't even know how that happened,  this behavior is hardcoded, that's impressive")))
+                };
                 Some(
                     vec![
                         Symbol::intern("def").to_rc_value(),
                         Rc::clone(macro_name),
                         macro_value,
                     ]
-                    .into_list()
-                    .eval_to_rc(Rc::clone(&environment)),
+                        .into_list()
+                        .eval_to_rc(Rc::clone(&environment)),
                 )
             }
             //
@@ -420,6 +431,26 @@ impl Value {
             // @TODO Rename for* everywhere, define for in terms of for* in
             //       ClojureRS
             Value::FnMacro => {
+                macro_rules! fn_body {
+                    ($implem:ident) => {{
+                        if $implem.len() <= 1 {
+                            Rc::new(Value::Nil)
+                            // (fn [x y] expr) -> expr
+                        } else if $implem.len() == 2 {
+                            Rc::clone($implem.get(1).unwrap())
+                            // (fn [x y] expr1 expr2 expr3) -> (do expr1 expr2 expr3)
+                        } else {
+                            // (&[expr1 expr2 expr3]
+                            let body_exprs = $implem.get(1..).unwrap();
+                            // vec![do]
+                            let mut do_body = vec![Symbol::intern("do").to_rc_value()];
+                            // vec![do expr1 expr2 expr3]
+                            do_body.extend_from_slice(body_exprs);
+                            // (do expr1 expr2 expr3)
+                            do_body.into_list().to_rc_value()
+                        }
+                    }};
+                }
                 let arg_rc_values = PersistentList::iter(args)
                     .map(|rc_arg| rc_arg)
                     .collect::<Vec<Rc<Value>>>();
@@ -446,32 +477,107 @@ impl Value {
                             }
                         }
 
-                        let fn_body =
-			// (fn [x y] ) -> nil 
-			    if arg_rc_values.len() <= 1 {
-				Rc::new(Value::Nil)
-				// (fn [x y] expr) -> expr 
-			    } else if arg_rc_values.len() == 2 {
-				Rc::clone(arg_rc_values.get(1).unwrap())
-				// (fn [x y] expr1 expr2 expr3) -> (do expr1 expr2 expr3) 
-			    } else {
-				// (&[expr1 expr2 expr3] 
-				let body_exprs = arg_rc_values.get(1..).unwrap();
-				// vec![do]
-				let mut do_body = vec![Symbol::intern("do").to_rc_value()];
-				// vec![do expr1 expr2 expr3]
-				do_body.extend_from_slice(body_exprs);
-				// (do expr1 expr2 expr3) 
-				do_body.into_list().to_rc_value()
-			    };
+                        let fn_body = fn_body!(arg_rc_values);
 
                         Some(Rc::new(
                             lambda::Fn {
-                                body: fn_body,
+                                implementations: Rc::new(vec![(arg_syms_vec, fn_body)]),
                                 enclosing_environment,
-                                arg_syms: arg_syms_vec,
+                            }.to_value(),
+                        ))
+                    }
+                    // We assume that the form is now (fn *([args...] (body...))*) where *<a>* stands for 'a' written once or repeatedly.
+                    // Possible definitions falling under this branch:
+                    //
+                    // - (fn
+                    //     ([arg] "hi"))
+                    //
+                    // - (fn
+                    //     ([arg] "hi")
+                    //     ([& args] "Heyo!"))
+                    //
+                    // - (fn
+                    //     ([arg] "hi")
+                    //     ([arg arg2] "Allow me to extend to you a most gracious and reverential greeting,
+                    //                   oh illustrious and resplendent being of exceptional magnificence!"))
+                    //
+                    // Not a possible usage of 'fn':
+                    //
+                    // - (fn
+                    //     ([x] "hey")
+                    //     ([y] "heyo"))
+                    //
+                    //  ==> Clojure would throw: "Can't have 2 overloads with same arity"
+                    //
+                    // - (fn
+                    //     ([& x] "hey")
+                    //     ([& y] "heyo"))
+                    //
+                    //  ==> Clojure would throw: "Can't have more than 1 variadic overload"
+                    //
+                    // - (fn
+                    //     ([x & y] "hey")
+                    //     ([& z] "heyo"))
+                    //
+                    //  ==> Clojure would throw: "Can't have more than 1 variadic overload"
+                    Value::PersistentList(_) => {
+                        let mut implementations: Vec<(Vec<Symbol>, Rc<Value>)> = vec![];
+                        let enclosing_environment =
+                            Rc::new(Environment::new_local_environment(Rc::clone(&environment)));
+                        let mut vararg_present = false;
+                        let mut arities = vec![];
+                        for implem in arg_rc_values {
+                            let Value::PersistentList(implem) = &*implem else {
+                                return Some(Rc::new(Value::Condition(std::string::String::from(
+                                    "Call to fn did not conform to spec."
+                                ))));
+                            };
+                            let implem = Rc::new(implem.clone()).iter().collect_vec();
+                            if implem.len() != 2 {
+                                return Some(Rc::new(Value::Condition(std::string::String::from(
+                                    "Call to fn did not conform to spec."
+                                ))));
                             }
-                            .to_value(),
+                            let Value::PersistentVector(PersistentVector { vals: args }) = &**implem.get(0).unwrap() else {
+                                return Some(Rc::new(Value::Condition(std::string::String::from(
+                                    "First argument to def must be a symbol",
+                                ))));
+                            };
+
+                            let mut is_vararg = false;
+                            let mut args_syms = vec![];
+                            for arg in args.iter() {
+                                if let Value::Symbol(sym) = &**arg {
+                                    if sym.to_string() == "&" { is_vararg = true; }
+                                    args_syms.push(sym.clone());
+                                }
+                            }
+
+                            // Here we check that there isn't a definition already with the same arity or with another vararg
+                            if is_vararg && vararg_present {
+                                return Some(Rc::new(Value::Condition(std::string::String::from(
+                                    "Can't have more than 1 variadic overload."
+                                ))));
+                            }
+                            if arities.contains(&args.len()) {
+                                return Some(Rc::new(Value::Condition(std::string::String::from(
+                                    "Can't have 2 overloads with same arity."
+                                ))));
+                            }
+
+                            vararg_present |= is_vararg;
+
+                            // This means that the given implementation is a valid one! We just need to parse it and add it to
+                            // the others
+                            let fn_body = fn_body!(implem);
+                            implementations.push((args_syms, fn_body));
+                        }
+
+                        Some(Rc::new(
+                            lambda::Fn {
+                                implementations: Rc::new(implementations),
+                                enclosing_environment,
+                            }.to_value(),
                         ))
                     }
                     _ => Some(Rc::new(Value::Condition(std::string::String::from(
@@ -775,16 +881,19 @@ impl Evaluable for Rc<Value> {
         }
     }
 }
+
 impl Evaluable for PersistentList {
     fn eval_to_rc(&self, environment: Rc<Environment>) -> Rc<Value> {
         self.to_rc_value().eval_to_rc(environment)
     }
 }
+
 impl Evaluable for Value {
     fn eval_to_rc(&self, environment: Rc<Environment>) -> Rc<Value> {
         self.to_rc_value().eval_to_rc(environment)
     }
 }
+
 mod tests {
     use crate::environment::Environment;
     use crate::keyword::Keyword;
@@ -798,6 +907,7 @@ mod tests {
     use crate::value::ToValue;
     use crate::value::Value;
     use std::rc::Rc;
+
     // (def ^{:cat 1 :dog 2} a "Docstring" 1)
     // ==>
     // a with meta of {:cat 1 :dog 2 :doc "Docstring"} ?

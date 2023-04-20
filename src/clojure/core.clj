@@ -6,10 +6,9 @@
 
 (def list (fn [& ls] ls))
 
-(defmacro defn [name args & body]
-  (list (quote def) name 
-        (list (quote fn) args 
-              (concat (list (quote do)) body))))
+(defmacro defn [name & args]
+  (list (quote def) name
+        (concat (list (quote fn)) args)))
 
 
 ";; @TODO Make more like Clojure Proper's apply"
@@ -88,3 +87,12 @@
     (if (empty? coll)
       (first init)
       (reduce f (rest coll) (f (first init) (first coll))))))
+
+(defn filter [pred coll]
+  (reduce (fn [acc x]
+            (if (pred x)
+              (conj acc x)
+              acc))
+          coll
+          []))
+
